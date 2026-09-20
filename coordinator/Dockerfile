@@ -7,7 +7,8 @@ COPY coordinator/server.js ./
 COPY rewards-workshop/workshop-activities.md ./workshop-activities.md
 
 ENV PORT=8080
-ENV CREDENTIALS_PATH=/data/credentials.csv
+# Path defaults live in server.js; setup-workshop.sh sets CREDENTIALS_PATH at runtime.
+# Avoid ENV *CREDENTIALS* here — BuildKit flags it as a secret-in-ENV false positive.
 ENV STATE_PATH=/data/state.json
 ENV ACTIVITIES_PATH=/opt/app-root/src/workshop-activities.md
 

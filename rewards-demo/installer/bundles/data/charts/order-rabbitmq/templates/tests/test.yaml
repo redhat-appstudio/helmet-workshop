@@ -1,0 +1,59 @@
+{{- if .Values.rabbitmq.enabled }}
+{{- $rmq := .Values.rabbitmq }}
+{{- $ns := $rmq.namespace }}
+{{- $secretName := printf "orders-%s" $rmq.secretName }}
+{{- $serviceName := printf "orders-%s" $rmq.service.name }}
+{{- $host := printf "%s.%s.svc" $serviceName $ns }}
+---
+# Helm test: fails install if queue Secret key is empty/missing or AMQP is down.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-orders-rabbitmq
+  namespace: {{ $ns }}
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+  labels:
+    app.kubernetes.io/part-of: {{ .Chart.Name }}
+spec:
+  restartPolicy: Never
+  containers:
+    - name: amqp-check
+      image: "{{ $rmq.image.repository }}:{{ $rmq.image.tag }}"
+      imagePullPolicy: {{ $rmq.image.pullPolicy }}
+      env:
+        - name: QUEUE
+          valueFrom:
+            secretKeyRef:
+              name: {{ $secretName }}
+              key: queue
+              optional: true
+        - name: AMQP_HOST
+          value: {{ $host | quote }}
+        - name: AMQP_PORT
+          value: {{ $rmq.service.port | toString | quote }}
+      command:
+        - /bin/sh
+        - -ec
+        - |
+          if [ -z "${QUEUE}" ]; then
+            echo "ERROR: Secret {{ $secretName }} key 'queue' is empty — check queueName spelling in the chart template"
+            exit 1
+          fi
+          echo "Queue name from Secret: ${QUEUE}"
+          echo "Waiting for AMQP at ${AMQP_HOST}:${AMQP_PORT}..."
+          # Chart readinessProbe: initialDelay 20s / period 15s (observed ~60s to Ready).
+          i=1
+          while [ "$i" -le 40 ]; do
+            if bash -c "echo >/dev/tcp/${AMQP_HOST}/${AMQP_PORT}" 2>/dev/null; then
+              echo "RabbitMQ AMQP port is open."
+              exit 0
+            fi
+            echo "not ready yet ($i/40)..."
+            i=$((i + 1))
+            sleep 3
+          done
+          echo "ERROR: RabbitMQ readiness check failed"
+          exit 1
+{{- end }}

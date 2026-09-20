@@ -98,13 +98,15 @@ if [[ "$NO_PUSH" -eq 0 ]]; then
   "$CLI" push "$WORKSHOP_IMAGE"
   echo "# pushing $COORDINATOR_IMAGE"
   "$CLI" push "$COORDINATOR_IMAGE"
+  status_line="Built and pushed:"
 else
   echo "Skipping registry push (--no-push)"
+  status_line="Built (not pushed):"
 fi
 
 cat <<EOF
 
-Built${NO_PUSH:+ (not pushed)}:
+${status_line}
   workshop:    $WORKSHOP_IMAGE
   coordinator: $COORDINATOR_IMAGE
 

@@ -25,7 +25,7 @@ stringData:
   password: {{ $password | quote }}
   host: {{ $host | quote }}
   port: {{ $rmq.service.port | toString | quote }}
-  queue: {{ $rmq.queuName | quote }}
+  queue: {{ $rmq.queuName | required "rabbitmq.queueName is empty — check spelling in the chart template" | quote }}
   amqp_url: {{ $amqpUrl | quote }}
 ---
 apiVersion: v1
@@ -40,7 +40,7 @@ data:
     {
       "queues": [
         {
-          "name": {{ $rmq.queuName | quote }},
+          "name": {{ $rmq.queuName | required "rabbitmq.queueName is empty — check spelling in the chart template" | quote }},
           "vhost": "/",
           "durable": true,
           "auto_delete": false,

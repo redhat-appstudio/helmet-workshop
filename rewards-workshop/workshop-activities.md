@@ -81,8 +81,8 @@ Complete `installer/bundles/data/values.yaml.tpl`.
 - [ ] `rabbitmq.enabled` is `true`
 - [ ] RabbitMQ `namespace` and `queueName` come from the Order Data product
 - [ ] `make build`
-- [ ] `./rewards-workshop template -n "$WORKSHOP_NAMESPACE" bundles/data/charts/order-postgres` — see rendered values + manifests for Postgres (ConfigMap → tpl → chart)
-- [ ] `./rewards-workshop template -n "$WORKSHOP_NAMESPACE" bundles/data/charts/order-rabbitmq` — same for RabbitMQ (same `bundles/data/values.yaml.tpl`)
+- [ ] `./rewards-workshop template --show-manifests=false --namespace "$WORKSHOP_NAMESPACE" bundles/data/charts/order-postgres` — confirm Postgres values from `bundles/data/values.yaml.tpl` (`enabled`, `dbname: orders`, namespace)
+- [ ] `./rewards-workshop template --show-manifests=false --namespace "$WORKSHOP_NAMESPACE" bundles/data/charts/order-rabbitmq` — confirm RabbitMQ values from the same `bundles/data/values.yaml.tpl` (`enabled`, `queueName: orders`)
 
 <details>
 <summary>Hint</summary>
@@ -102,14 +102,17 @@ holds product properties; `values.yaml.tpl` maps one into the other.
    for RabbitMQ from that chart’s `values.yaml` / templates.
 
 Product names in the ConfigMap (e.g. `Order Data`) become template keys with
-spaces replaced by underscores (`Order_Data`).
+spaces replaced by underscores (`Order_Data`). Template variables
+(`.Installer`, helpers like `required` / `default`): see Helmet
+[docs/templating.md](https://github.com/redhat-appstudio/helmet/blob/main/docs/templating.md)
+(also in the pod at `../../helmet/docs/templating.md` when Helmet is checked out).
 
 Stuck? Compare with `../rewards-demo/installer/bundles/data/values.yaml.tpl`.
 
-Both `template` calls use the same `bundles/data/values.yaml.tpl`. Default
-output shows “Values (Raw)” (rendered tpl from ConfigMap) plus Helm manifests
-with chart `values.yaml` defaults merged in — look for your namespace,
-`dbname: orders`, and `queueName: orders` in the resources.
+Both `template` calls use the same `bundles/data/values.yaml.tpl` with
+`--show-manifests=false` so you see rendered values only — look for your
+namespace, `dbname: orders`, and `queueName: orders`. Chart templates are
+fixed later.
 </details>
 
 ---
@@ -148,7 +151,7 @@ correct within the data bundle.
 - [ ] `installer/bundles/producer/values.yaml.tpl` — enable `orderProducer`
 - [ ] Wire DB/RabbitMQ secret names and manager route hostname in the same file
 - [ ] `make build`
-- [ ] `./rewards-workshop template --show-manifests=false -n "$WORKSHOP_NAMESPACE" bundles/producer/charts/order-producer` — confirm rendered values (`enabled`, `queueName: orders`, secret names, manager route hostname)
+- [ ] `./rewards-workshop template --show-manifests=false --namespace "$WORKSHOP_NAMESPACE" bundles/producer/charts/order-producer` — confirm rendered values (`enabled`, `queueName: orders`, secret names, manager route hostname)
 
 <details>
 <summary>Hint</summary>
@@ -162,6 +165,21 @@ Compare with:
 - `../rewards-demo/installer/bundles/producer/values.yaml.tpl`
 
 Route host pattern: `rewards-managers-{{ $ns }}.{{ ingress }}`.
+
+`$ingress` comes from `.OpenShift.Ingress.Domain` — Helmet fills `.OpenShift.*`
+by reading the cluster at template time (not the ConfigMap). Properties you can
+use in any `values.yaml.tpl`:
+
+| Template path | Source |
+|---------------|--------|
+| `.OpenShift.Ingress.Domain` | IngressController default domain |
+| `.OpenShift.Ingress.RouterCA` | Router CA cert (base64) |
+| `.OpenShift.Version` | ClusterVersion |
+| `.OpenShift.MinorVersion` | e.g. `4.18` from `4.18.2` |
+
+Empty on plain Kubernetes. Demo uses Domain to build the Route hostname.
+Full list and examples (Template Context — `.Installer` and `.OpenShift`):
+https://github.com/redhat-appstudio/helmet/blob/main/docs/templating.md
 
 `databaseName` stays on Order Data — the producer only references the existing
 `orders-pgsql-user` secret.
@@ -185,7 +203,7 @@ if you want to see where the Secrets are rendered.
 - [ ] Wire DB/RabbitMQ secret names in the same file
 - [ ] Wire **both** route hostnames (store + manager portal link)
 - [ ] `make build`
-- [ ] `./rewards-workshop template --show-manifests=false -n "$WORKSHOP_NAMESPACE" bundles/consumer/charts/order-consumer` — confirm rendered values (`enabled`, `queueName: orders`, secret names, store + manager hostnames)
+- [ ] `./rewards-workshop template --show-manifests=false --namespace "$WORKSHOP_NAMESPACE" bundles/consumer/charts/order-consumer` — confirm rendered values (`enabled`, `queueName: orders`, secret names, store + manager hostnames)
 
 <details>
 <summary>Hint</summary>
@@ -201,6 +219,11 @@ Compare with:
 Route host patterns:
 - store: `rewards-store-{{ $ns }}.{{ ingress }}`
 - manager portal link: `rewards-managers-{{ $ns }}.{{ ingress }}`
+
+`$ingress` is `.OpenShift.Ingress.Domain` (same Helmet cluster introspection as
+Activity 5 — not from the ConfigMap). Full list of `.OpenShift` / `.Installer`
+template variables (Template Context):
+https://github.com/redhat-appstudio/helmet/blob/main/docs/templating.md
 
 `databaseName` stays on Order Data — the consumer only references the existing
 `orders-pgsql-user` secret.
@@ -218,8 +241,8 @@ if you want to see where the Secrets are rendered.
 
 Edit producer and consumer chart metadata.
 
-- [ ] `order-producer/Chart.yaml` — add `depends-on-bundles: data`
-- [ ] `order-consumer/Chart.yaml` — add `depends-on-bundles: data`
+- [ ] `installer/bundles/producer/charts/order-producer/Chart.yaml` — add `helmet.redhat-appstudio.github.com/depends-on-bundles: data`
+- [ ] `installer/bundles/consumer/charts/order-consumer/Chart.yaml` — add `helmet.redhat-appstudio.github.com/depends-on-bundles: data`
 - [ ] `make build`
 - [ ] `./rewards-workshop topology` shows: rabbitmq → postgres → producer → consumer (no errors)
 
@@ -241,14 +264,16 @@ Edit producer and consumer chart metadata.
 
 With topology clean, try a full rollout.
 
-- [ ] `./rewards-workshop deploy` — fails on **order-rabbitmq** (template/render error)
-- [ ] Note the error message (unknown field / typo) before fixing in Activity 9
+- [ ] `./rewards-workshop deploy` — fails on **order-rabbitmq** (template render error)
+- [ ] Note the error (`rabbitmq.queueName is empty — check spelling…`) before fixing in Activity 9
 
 <details>
 <summary>Why it fails</summary>
 
-The starter chart templates contain deliberate bugs. Helmet stops the rollout on
-the first failing chart — producer and consumer are not reached yet.
+The starter RabbitMQ chart has a deliberate typo (`queuName`). Helm treats
+missing keys as empty, and `required` turns that into a hard render failure.
+Helmet stops the rollout on the first failing chart — producer and consumer
+are not reached yet.
 </details>
 
 ---
@@ -258,38 +283,41 @@ the first failing chart — producer and consumer are not reached yet.
 - [ ] Open `installer/bundles/data/charts/order-rabbitmq/templates/rabbitmq.yaml`
 - [ ] Fix typo **`queuName` → `queueName`** (two places)
 - [ ] `make build`
-- [ ] `./rewards-workshop deploy` — RabbitMQ and Postgres releases deploy (consumer/producer may still be pending)
+- [ ] `./rewards-workshop deploy` — **order-rabbitmq** install + Helm test pass; **order-postgres** install then **Helm test fails** (Secret key mismatch)
 
 <details>
 <summary>Hint</summary>
 
-Re-run `deploy` after each fix; Helmet upgrades charts already on the cluster.
+Helmet runs `helm test` after each chart. RabbitMQ’s test checks the `queue`
+Secret key and AMQP port. After the typo fix, RabbitMQ goes green; Postgres is
+next and its test Pod cannot start until the Secret key matches `dbname`.
 </details>
 
 ---
 
 ## Activity 10 — Fix PostgreSQL chart secret keys
 
-Postgres may deploy but not become Ready, blocking later charts.
+Deploy stops on the **order-postgres** Helm test until the Secret keys match.
 
-- [ ] Check `oc get pods` — postgres pod failing env/secret lookup
+- [ ] Inspect the failed test/pod (`oc get pods`, `oc describe pod -l job-name` / test pod, or the deploy error) — missing Secret key `dbname`
 - [ ] Open `installer/bundles/data/charts/order-postgres/templates/postgres/pgsql-service.yaml`
-- [ ] Secret `stringData` key must be **`dbname`** (not `database`) to match the container env
+- [ ] Secret `stringData` key must be **`dbname`** (not `database`) to match the container env **and** the chart test
 - [ ] `make build`
-- [ ] `./rewards-workshop deploy` until postgres pod is Ready
+- [ ] `./rewards-workshop deploy` — Postgres Helm test passes; producer/consumer install next (their tests wait on `/health`)
 
 <details>
 <summary>Hint</summary>
 
 Compare with `../rewards-demo/.../pgsql-service.yaml` around the Secret
-`stringData` block.
+`stringData` block. The chart test mounts `key: dbname` the same way the
+Postgres container does — that is what gates the install.
 </details>
 
 ---
 
 ## Activity 11 — Full deploy and verify rewards
 
-- [ ] `./rewards-workshop deploy` completes all four charts
+- [ ] `./rewards-workshop deploy` completes all four charts (each chart’s Helm test passes)
 - [ ] Manager portal URL works (submit a test order)
 - [ ] Store portal URL works (fulfill the order)
 - [ ] `./rewards-workshop topology` matches the instructor demo

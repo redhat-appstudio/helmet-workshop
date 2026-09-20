@@ -46,6 +46,7 @@ func main() {
 		cwd,
 		framework.WithMCPImage(mcpImageRef()),
 		framework.WithDistributedInstallerMergeLayout(),
+		framework.WithVerifyRetries(1),
 	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create application: %v\n", err)
