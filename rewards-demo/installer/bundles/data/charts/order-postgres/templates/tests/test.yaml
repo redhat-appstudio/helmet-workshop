@@ -1,0 +1,66 @@
+{{- with $pgsql := .Values.pgsqlService }}
+{{- range $inst := $pgsql.instances }}
+{{- if $inst.enabled }}
+{{- $secretName := printf "%s-%s" $inst.name $pgsql.secretName }}
+{{- $serviceName := printf "%s-%s" $inst.name $pgsql.service.name }}
+{{- $hostName := printf "%s.%s.svc" $serviceName $inst.namespace }}
+{{- $dbname := default $inst.name $inst.dbname }}
+---
+# Helm test: fails install if Secret keys are wrong (e.g. database vs dbname)
+# or if Postgres is not accepting connections.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-{{ $inst.name }}-pgsql
+  namespace: {{ $inst.namespace }}
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+  labels:
+    app.kubernetes.io/part-of: {{ $.Chart.Name }}
+spec:
+  restartPolicy: Never
+  containers:
+    - name: psql
+      image: '{{ $pgsql.image.repository }}{{ $pgsql.image.name }}:{{ $pgsql.image.tag }}'
+      imagePullPolicy: {{ $pgsql.image.pullPolicy }}
+      env:
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ $secretName }}
+              key: password
+        - name: PGUSER
+          valueFrom:
+            secretKeyRef:
+              name: {{ $secretName }}
+              key: user
+        - name: PGDATABASE
+          valueFrom:
+            secretKeyRef:
+              name: {{ $secretName }}
+              key: dbname
+              optional: true
+      command:
+        - /bin/bash
+        - -ec
+        - |
+          if [ -z "${PGDATABASE}" ]; then
+            echo "ERROR: Secret {{ $secretName }} missing key 'dbname' (is it named 'database' by mistake?)"
+            exit 1
+          fi
+          echo "Waiting for Postgres at {{ $hostName }}:{{ $pgsql.service.port }} (db=${PGDATABASE})..."
+          # Chart readinessProbe: initialDelay 15s / period 20s; empty PVC first boot is slower.
+          for i in {1..40}; do
+            if psql -d "${PGDATABASE}" -h "{{ $hostName }}" -p "{{ $pgsql.service.port }}" -U "{{ $inst.name }}" -c "select 1" >/dev/null; then
+              echo "Postgres is ready."
+              exit 0
+            fi
+            echo "not ready yet ($i/40)..."
+            sleep 3
+          done
+          echo "ERROR: Postgres readiness check failed"
+          exit 1
+{{- end }}
+{{- end }}
+{{- end }}

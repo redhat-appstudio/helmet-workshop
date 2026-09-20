@@ -1,0 +1,59 @@
+{{- if .Values.orderProducer.enabled }}
+{{- $p := .Values.orderProducer }}
+---
+# Helm test: fails install if DB/RabbitMQ Secret keys are wrong or /health is down.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: test-order-producer
+  namespace: {{ $p.namespace }}
+  annotations:
+    helm.sh/hook: test
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+  labels:
+    app.kubernetes.io/part-of: {{ .Chart.Name }}
+spec:
+  restartPolicy: Never
+  containers:
+    - name: health
+      image: {{ $p.image | quote }}
+      imagePullPolicy: IfNotPresent
+      env:
+        - name: PGDATABASE
+          valueFrom:
+            secretKeyRef:
+              name: {{ $p.database.secretName }}
+              key: dbname
+              optional: true
+        - name: AMQP_URL
+          valueFrom:
+            secretKeyRef:
+              name: {{ $p.rabbitmq.secretName }}
+              key: amqp_url
+              optional: true
+      command:
+        - /bin/sh
+        - -ec
+        - |
+          if [ -z "${PGDATABASE}" ]; then
+            echo "ERROR: Secret {{ $p.database.secretName }} missing key 'dbname'"
+            exit 1
+          fi
+          if [ -z "${AMQP_URL}" ]; then
+            echo "ERROR: Secret {{ $p.rabbitmq.secretName }} missing key 'amqp_url'"
+            exit 1
+          fi
+          echo "Secret keys ok (dbname, amqp_url)."
+          echo "Waiting for http://order-producer:8080/health ..."
+          # Chart readinessProbe: initialDelay 40s / period 10s — allow image pull + start.
+          for i in $(seq 1 40); do
+            if wget -qO- http://order-producer:8080/health >/dev/null 2>&1; then
+              echo "order-producer is healthy."
+              exit 0
+            fi
+            echo "not ready yet ($i/40)..."
+            sleep 3
+          done
+          echo "ERROR: order-producer health check failed"
+          exit 1
+{{- end }}
