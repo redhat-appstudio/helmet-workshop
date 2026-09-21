@@ -104,8 +104,7 @@ holds product properties; `values.yaml.tpl` maps one into the other.
 Product names in the ConfigMap (e.g. `Order Data`) become template keys with
 spaces replaced by underscores (`Order_Data`). Template variables
 (`.Installer`, helpers like `required` / `default`): see Helmet
-[docs/templating.md](https://github.com/redhat-appstudio/helmet/blob/main/docs/templating.md)
-(also in the pod at `../../helmet/docs/templating.md` when Helmet is checked out).
+https://github.com/redhat-appstudio/helmet/blob/main/docs/templating.md
 
 Stuck? Compare with `../rewards-demo/installer/bundles/data/values.yaml.tpl`.
 

@@ -50,7 +50,7 @@ Participants use the **coordinator page → Lab activities** (source: `rewards-w
 Built from `container/Dockerfile`:
 
 - `oc`, `helm`, `go`, `node`, `git`, `make`
-- Copies `helmet-workshop` + sibling `helmet` at image build
+- Copies `helmet-workshop` at image build; Helmet comes from the Go module pin in `rewards-*/go.mod`
 - Env: `REWARDS_DEMO_HOME`, `REWARDS_WORKSHOP_HOME`
 - Default cwd: `rewards-workshop` (participants); instructor deployments override to `rewards-demo`
 

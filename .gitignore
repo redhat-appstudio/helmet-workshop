@@ -2,6 +2,5 @@
 rewards-demo/rewards-demo
 rewards-workshop/rewards-workshop
 hack/workshop.env
-out/credentials.csv
-out/coordinator-links.txt
+out/
 coordinator/node_modules/
