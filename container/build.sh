@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
-# Build and push workshop + coordinator images (local filesystem; no git clone in workshop image).
+# Build and push workshop + coordinator images.
 #
 # Environment (see hack/workshop.env.example):
 #   WORKSHOP_IMAGE      Workshop pod image tag (required for real builds)
-#   HELMET_DIR          Optional; auto-detected as ../helmet if not set
-#   HELMET_BRANCH       Git branch for Helmet (default: composable_bundles)
-#   HELMET_CHECKOUT     When 1, git checkout HELMET_BRANCH before build (default: 0)
 #   COORDINATOR_IMAGE   Optional; defaults from WORKSHOP_IMAGE
 #   PLATFORM            docker build --platform (default: linux/amd64)
 #   CONTAINER_CLI       docker or podman (default: docker)
@@ -27,8 +24,6 @@ if [[ -n "${IMAGE:-}" && -z "${WORKSHOP_IMAGE:-}" ]]; then
   WORKSHOP_IMAGE="$IMAGE"
 fi
 
-HELMET_BRANCH="${HELMET_BRANCH:-composable_bundles}"
-HELMET_CHECKOUT="${HELMET_CHECKOUT:-0}"
 WORKSHOP_IMAGE="${WORKSHOP_IMAGE:-quay.io/your-org/helmet-workshop:dev}"
 NO_PUSH=0
 PLATFORM="${PLATFORM:-linux/amd64}"
@@ -41,7 +36,7 @@ while [[ $# -gt 0 ]]; do
     shift 2
     ;;
   -h | --help)
-    sed -n '2,20p' "$0" | sed 's/^# \?//'
+    sed -n '2,16p' "$0" | sed 's/^# \?//'
     exit 0
     ;;
   *)
@@ -52,24 +47,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 COORDINATOR_IMAGE="$(resolve_coordinator_image "$WORKSHOP_IMAGE")"
-HELMET_DIR="$(discover_helmet_dir "$ROOT")"
-
-helmet_branch_label="$HELMET_BRANCH"
-if [[ -d "$HELMET_DIR/.git" ]]; then
-  current_branch="$(git -C "$HELMET_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-  helmet_branch_label="$current_branch"
-  if [[ "$current_branch" != "$HELMET_BRANCH" ]]; then
-    if [[ "$HELMET_CHECKOUT" == "1" ]]; then
-      echo "# checking out $HELMET_BRANCH in $HELMET_DIR"
-      git -C "$HELMET_DIR" checkout "$HELMET_BRANCH"
-      helmet_branch_label="$(git -C "$HELMET_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "$HELMET_BRANCH")"
-    else
-      echo "Warning: Helmet is on branch '$current_branch', expected '$HELMET_BRANCH'." >&2
-      echo "  Checkout first: git -C \"$HELMET_DIR\" checkout \"$HELMET_BRANCH\"" >&2
-      echo "  Or build with: HELMET_CHECKOUT=1 $0" >&2
-    fi
-  fi
-fi
 
 export DOCKER_BUILDKIT=1
 CLI="${CONTAINER_CLI:-docker}"
@@ -79,11 +56,9 @@ if ! command -v "$CLI" >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "# helmet:          $HELMET_DIR (branch: $helmet_branch_label)"
 echo "# building workshop:    $WORKSHOP_IMAGE"
 "$CLI" build -f "$ROOT/container/Dockerfile" \
   --platform "$PLATFORM" \
-  --build-context "helmet=${HELMET_DIR}" \
   -t "$WORKSHOP_IMAGE" \
   "$ROOT"
 

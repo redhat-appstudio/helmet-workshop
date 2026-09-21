@@ -2,9 +2,7 @@ module github.com/redhat-appstudio/helmet-workshop/rewards-demo
 
 go 1.26.7
 
-replace github.com/redhat-appstudio/helmet => ../../helmet
-
-require github.com/redhat-appstudio/helmet v0.0.0
+require github.com/redhat-appstudio/helmet v0.1.1-0.20260921135441-3291db20bc25
 
 require (
 	cel.dev/expr v0.25.2 // indirect

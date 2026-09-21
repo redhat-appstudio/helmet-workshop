@@ -106,29 +106,6 @@ ensure_output_dir() {
   mkdir -p "$OUTPUT_DIR"
 }
 
-# Locate a local Helmet checkout for image build (sibling ../helmet by default).
-discover_helmet_dir() {
-  local root="$1"
-  local candidate
-
-  if [[ -n "${HELMET_DIR:-}" ]]; then
-    if [[ -f "${HELMET_DIR}/go.mod" ]]; then
-      printf '%s' "$(cd "$HELMET_DIR" && pwd)"
-      return 0
-    fi
-    die "HELMET_DIR=$HELMET_DIR does not look like a Helmet checkout (missing go.mod)"
-  fi
-
-  for candidate in "$root/../helmet" "$root/../../helmet"; do
-    if [[ -f "$candidate/go.mod" ]]; then
-      printf '%s' "$(cd "$candidate" && pwd)"
-      return 0
-    fi
-  done
-
-  die "Helmet checkout not found. Clone Helmet as a sibling of helmet-workshop (../helmet) or set HELMET_DIR."
-}
-
 # Random password per workshop slot (safe for CSV and console login).
 generate_workshop_password() {
   local pass

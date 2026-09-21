@@ -449,8 +449,6 @@ spec:
               value: ${ns}
             - name: HELMET_CONFIG_NAMESPACE
               value: ${ns}
-            - name: HELMET_SRC
-              value: /home/workshop/helmet
             - name: REWARDS_DEMO_HOME
               value: /home/workshop/helmet-workshop/rewards-demo
             - name: REWARDS_WORKSHOP_HOME

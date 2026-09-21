@@ -1,7 +1,5 @@
-.PHONY: build installer-tar sync-apps clean
+.PHONY: build installer-tar sync-apps clean deps
 
-HELMET_ROOT ?= ../../helmet
-HELMET_BRANCH ?= composable_bundles
 MCP_IMAGE ?= $(WORKSHOP_IMAGE)
 INSTALLER_DIR := installer
 TAR := $(INSTALLER_DIR)/installer.tar
@@ -13,19 +11,14 @@ ifneq ($(MCP_IMAGE),)
 LDFLAGS += -X main.defaultMCPImage=$(MCP_IMAGE)
 endif
 
-build: check-helmet go.sum $(TAR)
+build: go.sum $(TAR)
 	go build -mod=readonly $(if $(LDFLAGS),-ldflags "$(LDFLAGS)",) -o rewards-demo .
 
-check-helmet:
-	@test -f $(HELMET_ROOT)/go.mod || (echo "missing $(HELMET_ROOT); set HELMET_ROOT or checkout $(HELMET_BRANCH) there" && exit 1)
-
-# Download modules (used by build). Run `make deps` locally after changing go.mod / Helmet branch.
+# Download modules (used by build). Run `make deps` after changing go.mod / Helmet pin.
 go.sum: go.mod
-	@test -f $(HELMET_ROOT)/go.mod || (echo "missing $(HELMET_ROOT); set HELMET_ROOT or checkout $(HELMET_BRANCH) there" && exit 1)
 	go mod download
 
 deps: go.mod
-	@test -f $(HELMET_ROOT)/go.mod || (echo "missing $(HELMET_ROOT); set HELMET_ROOT or checkout $(HELMET_BRANCH) there" && exit 1)
 	go mod tidy
 
 installer-tar: sync-apps $(TAR)

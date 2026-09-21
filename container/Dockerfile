@@ -1,10 +1,9 @@
 # syntax=docker/dockerfile:1.4
-# Workshop pod image: local helmet-workshop (build context) + local Helmet (extra build context).
+# Workshop pod image: helmet-workshop build context only.
+# Helmet is a normal Go module dependency (pinned in rewards-*/go.mod).
 #
 #   ./container/build.sh
 #
-# Requires a sibling Helmet checkout (default: ../helmet). Override:
-#   WORKSHOP_IMAGE=... HELMET_BRANCH=composable_bundles ./container/build.sh
 ARG BASE_IMAGE=registry.access.redhat.com/ubi9/ubi:latest
 FROM ${BASE_IMAGE}
 
@@ -37,7 +36,6 @@ RUN curl -sSL "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/
 # OpenShift runs containers with an arbitrary UID (group 0). Own content as 1001:0 with g+rwX.
 RUN useradd -u 1001 -g 0 -m -d /home/workshop -s /bin/bash workshop
 
-COPY --from=helmet . /home/workshop/helmet
 COPY . /home/workshop/helmet-workshop
 RUN mkdir -p /home/workshop/.bashrc.d && \
     cp /home/workshop/helmet-workshop/container/workshop-bashrc.sh /home/workshop/.bashrc.d/workshop.sh && \
@@ -52,8 +50,6 @@ RUN mkdir -p /home/workshop/.cache/go-mod /home/workshop/.cache/go-build && \
 USER 1001
 
 ENV HOME=/home/workshop
-ENV HELMET_SRC=/home/workshop/helmet
-ENV HELMET_ROOT=/home/workshop/helmet
 ENV REWARDS_DEMO_HOME=/home/workshop/helmet-workshop/rewards-demo
 ENV REWARDS_WORKSHOP_HOME=/home/workshop/helmet-workshop/rewards-workshop
 ENV PATH="/home/workshop/go/bin:${PATH}"

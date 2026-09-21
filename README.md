@@ -45,11 +45,9 @@ Example `hack/workshop.env`:
 
 ```bash
 export WORKSHOP_IMAGE=quay.io/tsscdavp/helmet-workshop:dev
-export HELMET_BRANCH=composable_bundles
 export PLATFORM=linux/amd64
 export PARTICIPANT_COUNT=20
 export INSTRUCTOR_COUNT=2
-# HELMET_DIR only if Helmet is not ../helmet (auto-detected by default)
 ```
 
 1. **Build & push** both images (requires `podman login quay.io`):
@@ -66,7 +64,16 @@ export INSTRUCTOR_COUNT=2
 
    Setup writes **`out/coordinator-links.txt`**: OpenShift Route URL, optional **TinyURL** short link, and QR image URL. Custom slug: `WORKSHOP_SHORTURL_SLUG` + `TINYURL_API_TOKEN` in `hack/workshop.env`.
 
-3. **Teardown**: `./hack/cleanup-workshop.sh`
+3. **Capacity test** (optional — parallel build/config/deploy in all workshop pods):
+
+   ```bash
+   ./hack/capacity-test.sh                  # all participants, max parallel
+   ./hack/capacity-test.sh --parallel 5     # throttle concurrency
+   ```
+
+   Uses `rewards-demo` inside each pod. Logs + before/after worker CPU/mem snapshots under `out/capacity-test-*`.
+
+4. **Teardown**: `./hack/cleanup-workshop.sh`
 
 ## Session flow
 
@@ -88,13 +95,17 @@ After the demo, instructors `cd ../rewards-workshop` to follow along with partic
 
 ## Local development (outside the cluster)
 
-Helmet is copied into the image at build time from a sibling `../helmet` checkout:
+Helmet is a normal Go module (pinned in `rewards-*/go.mod` to a commit on
+[`main`](https://github.com/redhat-appstudio/helmet/commits/main/)). No sibling
+Helmet checkout is required:
 
 ```bash
-cd ../helmet && git checkout "${HELMET_BRANCH:-composable_bundles}"
-cd ../helmet-workshop/rewards-demo && make deps && make build
-HELMET_DIR=/path/to/helmet ./container/build.sh --no-push
+cd rewards-demo && make deps && make build
+./container/build.sh --no-push
 ```
+
+To bump Helmet: `cd rewards-demo && go get github.com/redhat-appstudio/helmet@main && go mod tidy`
+(and the same in `rewards-workshop`).
 
 Validate that completing all activities yields the same bundles as `rewards-demo`:
 
