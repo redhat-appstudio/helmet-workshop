@@ -186,7 +186,7 @@ echo "# [\$(hostname)] ns=\$NS cwd=\$(pwd) skip_deploy=${skip_deploy}"
 echo "# make build"
 make build
 echo "# config --create --force"
-${INSTALLER_BIN} config --create --force -n "\$NS"
+${INSTALLER_BIN} config --create --force
 echo "# topology"
 ${INSTALLER_BIN} topology
 if [[ "${skip_deploy}" != "1" ]]; then

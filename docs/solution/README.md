@@ -8,7 +8,7 @@ Documents the **completed** `rewards-demo` installer used as the workshop answer
 cd "$REWARDS_DEMO_HOME"
 export KUBECONFIG=""
 make build
-./rewards-demo config --create -n "$WORKSHOP_NAMESPACE"
+./rewards-demo config --create
 ./rewards-demo topology
 ./rewards-demo deploy
 ```

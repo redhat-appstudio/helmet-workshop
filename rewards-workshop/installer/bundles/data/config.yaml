@@ -1,4 +1,3 @@
-# Activity 2 — set product properties (hint: queue name must match across all bundles).
 name: Order Data
 properties:
   queueName: order

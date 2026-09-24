@@ -86,7 +86,7 @@ Instructor demo:
 # instructor pod — already in rewards-demo
 export KUBECONFIG=""
 make build
-./rewards-demo config --create -n "$WORKSHOP_NAMESPACE"
+./rewards-demo config --create
 ./rewards-demo topology
 ./rewards-demo deploy
 ```
