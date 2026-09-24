@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/redhat-appstudio/helmet-workshop/rewards-workshop/installer"
 
@@ -28,6 +29,17 @@ func mcpImageRef() string {
 	return "quay.io/your-org/helmet-workshop:latest"
 }
 
+// installerNamespace defaults config --create -n from the workshop pod env.
+// Falls back to AppContext name (rewards-workshop) when unset.
+func installerNamespace() string {
+	for _, key := range []string{"WORKSHOP_NAMESPACE", "HELMET_CONFIG_NAMESPACE"} {
+		if ns := strings.TrimSpace(os.Getenv(key)); ns != "" {
+			return ns
+		}
+	}
+	return ""
+}
+
 func main() {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -35,10 +47,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	appCtx := api.NewAppContext(
-		"rewards-workshop",
+	opts := []api.ContextOption{
 		api.WithShortDescription("DevConf workshop: build the Helmet Corp rewards installer"),
-	)
+	}
+	if ns := installerNamespace(); ns != "" {
+		opts = append(opts, api.WithNamespace(ns))
+	}
+
+	appCtx := api.NewAppContext("rewards-workshop", opts...)
 
 	app, err := framework.NewAppFromTarball(
 		appCtx,

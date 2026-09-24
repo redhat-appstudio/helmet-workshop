@@ -131,10 +131,16 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-/** Render a small subset of inline Markdown (code + bold) safely as HTML. */
+/** Render a small subset of inline Markdown (links + code + bold) safely as HTML. */
 function renderInlineMarkdown(text) {
   const escaped = escapeHtml(text);
-  const withCode = escaped.replace(/`([^`]+)`/g, "<code>$1</code>");
+  // Only http(s) hrefs; label may still contain `code` / **bold** markers.
+  const withLinks = escaped.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+    (_match, label, url) =>
+      `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`,
+  );
+  const withCode = withLinks.replace(/`([^`]+)`/g, "<code>$1</code>");
   return withCode.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
 }
 
@@ -162,7 +168,7 @@ function renderHintBody(text) {
   return html || `<p>${renderMarkdownParagraph(text)}</p>`;
 }
 
-/** @typedef {{ id: string, title: string, items: string[], hint?: { label: string, body: string } }} ActivitySection */
+/** @typedef {{ id: string, title: string, description?: string, items: string[], hint?: { label: string, body: string } }} ActivitySection */
 
 /** Parse workshop-activities.md into renderable sections. */
 function parseActivitiesMarkdown(text) {
@@ -185,11 +191,21 @@ function parseActivitiesMarkdown(text) {
         items.push(match[1].trim());
       }
     }
+    // Purpose blurb: prose between the heading and the first checkbox / details.
+    const preambleMatch = body.match(
+      /^([\s\S]*?)(?=^- \[ \]|^<details>)/m,
+    );
+    const description = preambleMatch
+      ? preambleMatch[1].trim().replace(/\n+/g, " ")
+      : "";
     const hintMatch = body.match(
       /<details>\s*<summary>([\s\S]*?)<\/summary>\s*([\s\S]*?)<\/details>/,
     );
     /** @type {ActivitySection} */
     const section = { id, title, items };
+    if (description) {
+      section.description = description;
+    }
     if (hintMatch) {
       section.hint = {
         label: hintMatch[1].trim(),
@@ -227,12 +243,17 @@ function renderActivitiesHtml(sections) {
         })
         .join("\n");
 
+      const description = section.description
+        ? `<p class="activity-desc">${renderInlineMarkdown(section.description)}</p>`
+        : "";
+
       const hint = section.hint
         ? `<details class="hint"><summary>${renderInlineMarkdown(section.hint.label)}</summary>${renderHintBody(section.hint.body)}</details>`
         : "";
 
       return `<details class="activity">
   <summary>${renderInlineMarkdown(section.title)}</summary>
+  ${description}
   <ul class="checks">${checks}</ul>
   ${hint}
 </details>`;
@@ -269,6 +290,7 @@ function pageStyles() {
     .lab-activities > summary { font-weight: 700; font-size: 1.05rem; cursor: pointer; }
     .activity { margin-top: .75rem; border: 1px solid #e0e0e0; border-radius: 6px; padding: .5rem .75rem; overflow: hidden; }
     .activity > summary { font-weight: 600; cursor: pointer; overflow-wrap: anywhere; }
+    .activity-desc { margin: .5rem 0 .25rem; font-size: .9rem; color: #444; overflow-wrap: anywhere; }
     .checks { list-style: none; padding-left: 0; margin: .5rem 0; }
     .checks li { margin: .35rem 0; }
     .checks label { display: flex; gap: .5rem; align-items: flex-start; }
@@ -278,6 +300,7 @@ function pageStyles() {
     .hint { margin-top: .5rem; font-size: .9rem; color: #444; overflow-wrap: anywhere; }
     .hint > summary { cursor: pointer; color: #0066cc; }
     .hint p { overflow-wrap: anywhere; margin: .35rem 0 0; }
+    .hint a, .checks a, .activity > summary a { color: #0066cc; }
     .code-block { background: #f0f0f0; padding: .65rem .75rem; border-radius: 4px; overflow-x: auto; font-size: .85rem; margin: .35rem 0 0; }
     .code-block code { background: none; padding: 0; white-space: pre; display: block; overflow-wrap: normal; }`;
 }
